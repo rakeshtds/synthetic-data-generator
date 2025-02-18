@@ -145,12 +145,13 @@ def main():
         .title {
             text-align: center;
             color: #2E4053;
-            padding: 20px;
-            border-radius: 5px;
-            margin-bottom: 30px;
+            padding: 1.25rem;
+            border-radius: 0.375rem;
+            margin-bottom: 2rem;
+            background-color: #f8f9fa;
         }
         </style>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
     
     st.markdown("<h1 class='title'>FIC DATA Generator</h1>", unsafe_allow_html=True)
     
