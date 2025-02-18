@@ -193,20 +193,31 @@ Describe your data schema in plain English. You can specify:
             help="Be specific about any constraints like age ranges or date ranges"
         )
         
+        # Initialize parsed_schema in session state if not exists
+        if 'parsed_schema' not in st.session_state:
+            st.session_state.parsed_schema = None
+
         if schema_description and st.button("Parse Schema", key="parse_nl"):
             with st.spinner("Parsing schema description..."):
                 parser = SchemaParser()
                 try:
-                    schema = parser.parse_natural_language(schema_description)
-                    if schema:
+                    parsed_schema = parser.parse_natural_language(schema_description)
+                    if parsed_schema:
+                        st.session_state.parsed_schema = parsed_schema
                         st.success("Schema parsed successfully!")
                         st.subheader("Parsed Schema")
-                        st.json(schema)
+                        st.json(parsed_schema)
                     else:
+                        st.session_state.parsed_schema = None
                         st.error("Failed to parse schema. Please try a different description.")
                 except Exception as e:
+                    st.session_state.parsed_schema = None
                     st.error(f"Error parsing schema: {str(e)}")
                     st.info("Try a simple example like: 'Create a table with full name, age between 18-65, and email'")
+        
+        # Show the current parsed schema if it exists
+        if st.session_state.parsed_schema:
+            schema = st.session_state.parsed_schema
             
     with schema_tab2:
         # Available field types
@@ -275,14 +286,16 @@ Describe your data schema in plain English. You can specify:
     )
     
     # Generate Data button outside tabs
-    if schema and st.button("Generate Data", key="generate"):
+    if (schema or st.session_state.get('parsed_schema')) and st.button("Generate Data", key="generate"):
+        # Use either the manual schema or the parsed schema
+        final_schema = schema if schema else st.session_state.parsed_schema
         if not api_key:
             st.error("Please enter your Anthropic API Key in the sidebar")
             return
             
         with st.spinner("Generating data..."):
             generator = DataGenerator()
-            df = generator.generate_with_rules(schema, rules, num_records)
+            df = generator.generate_with_rules(final_schema, rules, num_records)
             
             # Display preview
             st.subheader("Generated Data Preview")
