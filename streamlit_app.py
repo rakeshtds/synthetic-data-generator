@@ -173,18 +173,18 @@ def main():
     schema = None
     
     with schema_tab1:
-        st.markdown("""
-            ### Natural Language Schema Definition
-            Describe your data schema in plain English. You can specify:
-            - Field names and types
-            - Constraints (e.g., age ranges, date ranges)
-            - Any special requirements
-            
-            **Example inputs:**
-            1. "Create a table with full name, age between 18-65, and email"
-            2. "I need employee data with name, company, and joining date between 2020 and 2024"
-            3. "Generate customer data with name, phone number, address, and age above 21"
-        """)
+        st.markdown('''
+### Natural Language Schema Definition
+Describe your data schema in plain English. You can specify:
+- Field names and types
+- Constraints (e.g., age ranges, date ranges)
+- Any special requirements
+
+**Example inputs:**
+1. "Create a table with full name, age between 18-65, and email"
+2. "I need employee data with name, company, and joining date between 2020 and 2024"
+3. "Generate customer data with name, phone number, address, and age above 21"
+        ''')
         
         schema_description = st.text_area(
             "Enter your schema description",
