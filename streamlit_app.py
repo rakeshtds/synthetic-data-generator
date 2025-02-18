@@ -140,18 +140,18 @@ def main():
     st.set_page_config(page_title="FIC DATA Generator", layout="wide")
     
     # Custom CSS for title styling
-    st.markdown("""
+    st.markdown('''
         <style>
         .title {
             text-align: center;
             color: #2E4053;
-            padding: 1.25rem;
-            border-radius: 0.375rem;
-            margin-bottom: 2rem;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 32px;
             background-color: #f8f9fa;
         }
         </style>
-        """, unsafe_allow_html=True)
+        ''', unsafe_allow_html=True)
     
     st.markdown("<h1 class='title'>FIC DATA Generator</h1>", unsafe_allow_html=True)
     
