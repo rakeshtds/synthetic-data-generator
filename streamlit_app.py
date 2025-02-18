@@ -126,8 +126,15 @@ Return only the transformation code, no explanations.'''.format(
             max_val = constraints.get('max', 100.0)
             return round(random.uniform(min_val, max_val), 2)
         elif field_type == "date":
+            # Convert string dates to datetime objects if needed
             start_date = constraints.get('start_date', datetime.date(2000, 1, 1))
             end_date = constraints.get('end_date', datetime.date(2023, 12, 31))
+            
+            if isinstance(start_date, str):
+                start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            if isinstance(end_date, str):
+                end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+                
             return self.faker.date_between(start_date=start_date, end_date=end_date)
         elif field_type == "address":
             return self.faker.address()
