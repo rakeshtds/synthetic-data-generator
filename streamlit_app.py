@@ -124,7 +124,22 @@ class DataGenerator:
         return None
 
 def main():
-    st.title("GenAI Synthetic Data Generator")
+    st.set_page_config(page_title="FIC DATA Generator", layout="wide")
+    
+    # Custom CSS for title styling
+    st.markdown("""
+        <style>
+        .title {
+            text-align: center;
+            color: #2E4053;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<h1 class='title'>FIC DATA Generator</h1>", unsafe_allow_html=True)
     
     # Sidebar for API key
     with st.sidebar:
@@ -138,12 +153,78 @@ def main():
                                     max_value=10000, 
                                     value=100)
     
-    # Main interface
-    st.header("Schema Definition")
-    schema_description = st.text_area(
-        "Describe your data schema in natural language",
-        help="Example: Create a table with full name, age between 18-65, email, and company name"
-    )
+    # Main interface - Tabs for different schema definition methods
+    schema_tab1, schema_tab2 = st.tabs(["Natural Language Input", "Manual Schema Builder"])
+    
+    schema = None
+    
+    with schema_tab1:
+        schema_description = st.text_area(
+            "Describe your data schema in natural language",
+            help="Example: Create a table with full name, age between 18-65, email, and company name"
+        )
+        if schema_description and st.button("Parse Schema", key="parse_nl"):
+            parser = SchemaParser()
+            schema = parser.parse_natural_language(schema_description)
+            
+    with schema_tab2:
+        # Available field types
+        FIELD_TYPES = [
+            "name",
+            "email",
+            "phone",
+            "integer",
+            "float",
+            "date",
+            "address",
+            "company"
+        ]
+        
+        # Initialize manual schema in session state if not exists
+        if 'manual_schema' not in st.session_state:
+            st.session_state.manual_schema = []
+            
+        # Add new field form
+        with st.expander("Add New Field", expanded=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                new_field_name = st.text_input("Field Name")
+            with col2:
+                new_field_type = st.selectbox("Field Type", FIELD_TYPES)
+                
+            # Additional constraints based on field type
+            constraints = {}
+            if new_field_type in ["integer", "float"]:
+                min_val = st.number_input("Minimum Value", value=0)
+                max_val = st.number_input("Maximum Value", value=100)
+                constraints = {"min": min_val, "max": max_val}
+            elif new_field_type == "date":
+                start_date = st.date_input("Start Date", datetime.date(2000, 1, 1))
+                end_date = st.date_input("End Date", datetime.date(2023, 12, 31))
+                constraints = {"start_date": start_date, "end_date": end_date}
+                
+            if st.button("Add Field", key="add_field"):
+                if new_field_name and new_field_type:
+                    st.session_state.manual_schema.append({
+                        "name": new_field_name,
+                        "type": new_field_type,
+                        "constraints": constraints
+                    })
+        
+        # Display current schema
+        st.subheader("Current Schema")
+        if st.session_state.manual_schema:
+            schema_df = pd.DataFrame(st.session_state.manual_schema)
+            st.dataframe(schema_df)
+            
+            if st.button("Clear Schema"):
+                st.session_state.manual_schema = []
+                st.experimental_rerun()
+                
+            schema = st.session_state.manual_schema
+        else:
+            st.info("No fields added yet. Use the form above to add fields to your schema.")
     
     # Additional rules
     st.header("Data Generation Rules")
@@ -152,48 +233,41 @@ def main():
         help="Example: Age should follow normal distribution with mean 35. Email domains should be mostly gmail.com"
     )
     
-    if schema_description and st.button("Generate Data"):
+    # Generate Data button outside tabs
+    if schema and st.button("Generate Data", key="generate"):
         if not api_key:
             st.error("Please enter your Anthropic API Key in the sidebar")
             return
             
-        with st.spinner("Parsing schema..."):
-            parser = SchemaParser()
-            schema = parser.parse_natural_language(schema_description)
+        with st.spinner("Generating data..."):
+            generator = DataGenerator()
+            df = generator.generate_with_rules(schema, rules, num_records)
             
-            if schema:
-                st.subheader("Parsed Schema")
-                st.json(schema)
-                
-                with st.spinner("Generating data..."):
-                    generator = DataGenerator()
-                    df = generator.generate_with_rules(schema, rules, num_records)
-                    
-                    # Display preview
-                    st.subheader("Generated Data Preview")
-                    st.dataframe(df.head())
-                    
-                    # Download options
-                    st.subheader("Download Options")
-                    col1, col2 = st.columns(2)
-                    
-                    # CSV download
-                    csv = df.to_csv(index=False)
-                    col1.download_button(
-                        label="Download CSV",
-                        data=csv,
-                        file_name="synthetic_data.csv",
-                        mime="text/csv"
-                    )
-                    
-                    # JSON download
-                    json_str = df.to_json(orient="records")
-                    col2.download_button(
-                        label="Download JSON",
-                        data=json_str,
-                        file_name="synthetic_data.json",
-                        mime="application/json"
-                    )
+            # Display preview
+            st.subheader("Generated Data Preview")
+            st.dataframe(df.head())
+            
+            # Download options
+            st.subheader("Download Options")
+            col1, col2 = st.columns(2)
+            
+            # CSV download
+            csv = df.to_csv(index=False)
+            col1.download_button(
+                label="Download CSV",
+                data=csv,
+                file_name="synthetic_data.csv",
+                mime="text/csv"
+            )
+            
+            # JSON download
+            json_str = df.to_json(orient="records")
+            col2.download_button(
+                label="Download JSON",
+                data=json_str,
+                file_name="synthetic_data.json",
+                mime="application/json"
+            )
 
 if __name__ == "__main__":
     main()
