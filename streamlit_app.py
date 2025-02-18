@@ -213,18 +213,18 @@ def main():
                     })
         
         # Display current schema
-        st.subheader("Current Schema")
-        if st.session_state.manual_schema:
-            schema_df = pd.DataFrame(st.session_state.manual_schema)
-            st.dataframe(schema_df)
-            
-            if st.button("Clear Schema"):
-                st.session_state.manual_schema = []
-                st.experimental_rerun()
+        with st.expander("Current Schema", expanded=True):
+            if st.session_state.manual_schema:
+                schema_df = pd.DataFrame(st.session_state.manual_schema)
+                st.dataframe(schema_df)
                 
-            schema = st.session_state.manual_schema
-        else:
-            st.info("No fields added yet. Use the form above to add fields to your schema.")
+                if st.button("Clear Schema"):
+                    st.session_state.manual_schema = []
+                    st.rerun()
+                    
+                schema = st.session_state.manual_schema
+            else:
+                st.info("No fields added yet. Use the form above to add fields to your schema.")
     
     # Additional rules
     st.header("Data Generation Rules")
