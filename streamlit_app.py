@@ -19,21 +19,34 @@ class SchemaParser:
     
     def parse_natural_language(self, description: str) -> List[Dict]:
         """Parse natural language description into schema definition"""
-        prompt = f"""Given the following description of a data schema, convert it into a structured format.
+        prompt = f"""You are a data schema parser. Convert this natural language description into a structured schema format.
+        
         Description: {description}
         
-        Return a Python list of dictionaries where each dictionary represents a field with:
-        - name: field name (snake_case)
-        - type: data type (string, integer, float, date, email, phone, name, address, company)
-        - constraints: dictionary of constraints (if any)
+        Rules:
+        1. Convert each described field into a dictionary with: name, type, and constraints
+        2. Use snake_case for field names
+        3. Only use these types: name, email, phone, integer, float, date, address, company
+        4. Extract any mentioned constraints (min/max for numbers, date ranges, etc.)
+        5. If no constraints are mentioned, use empty dict {{}}
         
-        Example output format:
-        [
+        Example 1:
+        Input: "Create a table with full name, age between 18-65, and email"
+        Output: [
             {{"name": "full_name", "type": "name", "constraints": {{}}}},
-            {{"name": "age", "type": "integer", "constraints": {{"min": 18, "max": 65}}}}
+            {{"name": "age", "type": "integer", "constraints": {{"min": 18, "max": 65}}}},
+            {{"name": "email", "type": "email", "constraints": {{}}}}
         ]
         
-        Provide only the Python list, no other text."""
+        Example 2:
+        Input: "I need employee data with name, company, and joining date between 2020 and 2024"
+        Output: [
+            {{"name": "employee_name", "type": "name", "constraints": {{}}}},
+            {{"name": "company", "type": "company", "constraints": {{}}}},
+            {{"name": "joining_date", "type": "date", "constraints": {{"start_date": "2020-01-01", "end_date": "2024-12-31"}}}}
+        ]
+        
+        Return ONLY a valid Python list of dictionaries that can be parsed with ast.literal_eval(). No other text.
 
         response = self.anthropic.messages.create(
             model="claude-3-opus-20240229",
@@ -159,13 +172,38 @@ def main():
     schema = None
     
     with schema_tab1:
+        st.markdown("""
+            ### Natural Language Schema Definition
+            Describe your data schema in plain English. You can specify:
+            - Field names and types
+            - Constraints (e.g., age ranges, date ranges)
+            - Any special requirements
+            
+            **Example inputs:**
+            1. "Create a table with full name, age between 18-65, and email"
+            2. "I need employee data with name, company, and joining date between 2020 and 2024"
+            3. "Generate customer data with name, phone number, address, and age above 21"
+        """)
+        
         schema_description = st.text_area(
-            "Describe your data schema in natural language",
-            help="Example: Create a table with full name, age between 18-65, email, and company name"
+            "Enter your schema description",
+            placeholder="Example: Create a table with full name, age between 18-65, email, and company name",
+            help="Be specific about any constraints like age ranges or date ranges"
         )
         if schema_description and st.button("Parse Schema", key="parse_nl"):
-            parser = SchemaParser()
-            schema = parser.parse_natural_language(schema_description)
+            with st.spinner("Parsing schema description..."):
+                parser = SchemaParser()
+                try:
+                    schema = parser.parse_natural_language(schema_description)
+                    if schema:
+                        st.success("Schema parsed successfully!")
+                        st.subheader("Parsed Schema")
+                        st.json(schema)
+                    else:
+                        st.error("Failed to parse schema. Please try a different description.")
+                except Exception as e:
+                    st.error(f"Error parsing schema: {str(e)}")
+                    st.info("Try a simple example like: 'Create a table with full name, age between 18-65, and email'")
             
     with schema_tab2:
         # Available field types
