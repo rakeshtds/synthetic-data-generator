@@ -18,35 +18,34 @@ class SchemaParser:
         self.anthropic = Anthropic()
     
     def parse_natural_language(self, description: str) -> List[Dict]:
-        """Parse natural language description into schema definition"""
-        prompt = f"""You are a data schema parser. Convert this natural language description into a structured schema format.
+        prompt = '''You are a data schema parser. Convert this natural language description into a structured schema format.
         
-        Description: {description}
-        
-        Rules:
-        1. Convert each described field into a dictionary with: name, type, and constraints
-        2. Use snake_case for field names
-        3. Only use these types: name, email, phone, integer, float, date, address, company
-        4. Extract any mentioned constraints (min/max for numbers, date ranges, etc.)
-        5. If no constraints are mentioned, use empty dict {{}}
-        
-        Example 1:
-        Input: "Create a table with full name, age between 18-65, and email"
-        Output: [
-            {{"name": "full_name", "type": "name", "constraints": {{}}}},
-            {{"name": "age", "type": "integer", "constraints": {{"min": 18, "max": 65}}}},
-            {{"name": "email", "type": "email", "constraints": {{}}}}
-        ]
-        
-        Example 2:
-        Input: "I need employee data with name, company, and joining date between 2020 and 2024"
-        Output: [
-            {{"name": "employee_name", "type": "name", "constraints": {{}}}},
-            {{"name": "company", "type": "company", "constraints": {{}}}},
-            {{"name": "joining_date", "type": "date", "constraints": {{"start_date": "2020-01-01", "end_date": "2024-12-31"}}}}
-        ]
-        
-        Return ONLY a valid Python list of dictionaries that can be parsed with ast.literal_eval(). No other text.
+Description: {description}
+
+Rules:
+1. Convert each described field into a dictionary with: name, type, and constraints
+2. Use snake_case for field names
+3. Only use these types: name, email, phone, integer, float, date, address, company
+4. Extract any mentioned constraints (min/max for numbers, date ranges, etc.)
+5. If no constraints are mentioned, use empty dict {{}}
+
+Example 1:
+Input: "Create a table with full name, age between 18-65, and email"
+Output: [
+    {{"name": "full_name", "type": "name", "constraints": {{}}}},
+    {{"name": "age", "type": "integer", "constraints": {{"min": 18, "max": 65}}}},
+    {{"name": "email", "type": "email", "constraints": {{}}}}
+]
+
+Example 2:
+Input: "I need employee data with name, company, and joining date between 2020 and 2024"
+Output: [
+    {{"name": "employee_name", "type": "name", "constraints": {{}}}},
+    {{"name": "company", "type": "company", "constraints": {{}}}},
+    {{"name": "joining_date", "type": "date", "constraints": {{"start_date": "2020-01-01", "end_date": "2024-12-31"}}}}
+]
+
+Return ONLY a valid Python list of dictionaries that can be parsed with ast.literal_eval(). No other text.'''.format(description=description)
 
         response = self.anthropic.messages.create(
             model="claude-3-opus-20240229",
@@ -56,7 +55,6 @@ class SchemaParser:
         )
         
         try:
-            # Extract and parse the schema from Claude's response
             schema = ast.literal_eval(response.content[0].text)
             return schema
         except:
@@ -69,7 +67,6 @@ class DataGenerator:
         self.anthropic = Anthropic()
         
     def generate_with_rules(self, schema: List[Dict], rules: str, num_records: int) -> pd.DataFrame:
-        """Generate data based on schema and additional rules"""
         # First generate basic data
         data = []
         for _ in range(num_records):
@@ -83,15 +80,18 @@ class DataGenerator:
         
         # Apply additional rules if provided
         if rules:
-            prompt = f"""Given this dataset and rules, modify the data to comply with the rules.
-            Dataset (first 3 records for reference):
-            {json.dumps(data[:3], indent=2)}
-            
-            Rules:
-            {rules}
-            
-            Provide Python code that will transform the data to meet these rules.
-            Return only the transformation code, no explanations."""
+            prompt = '''Given this dataset and rules, modify the data to comply with the rules.
+Dataset (first 3 records for reference):
+{data}
+
+Rules:
+{rules}
+
+Provide Python code that will transform the data to meet these rules.
+Return only the transformation code, no explanations.'''.format(
+                data=json.dumps(data[:3], indent=2),
+                rules=rules
+            )
 
             response = self.anthropic.messages.create(
                 model="claude-3-opus-20240229",
@@ -101,7 +101,6 @@ class DataGenerator:
             )
             
             try:
-                # Execute the transformation code
                 transformation_code = response.content[0].text
                 local_dict = {"data": data, "pd": pd, "np": np}
                 exec(transformation_code, globals(), local_dict)
@@ -141,17 +140,17 @@ def main():
     
     # Custom CSS for title styling
     st.markdown('''
-        <style>
-        .title {
-            text-align: center;
-            color: #2E4053;
-            padding: 20px;
-            border-radius: 6px;
-            margin-bottom: 32px;
-            background-color: #f8f9fa;
-        }
-        </style>
-        ''', unsafe_allow_html=True)
+<style>
+.title {
+    text-align: center;
+    color: #2E4053;
+    padding: 20px;
+    border-radius: 6px;
+    margin-bottom: 32px;
+    background-color: #f8f9fa;
+}
+</style>
+    ''', unsafe_allow_html=True)
     
     st.markdown("<h1 class='title'>FIC DATA Generator</h1>", unsafe_allow_html=True)
     
@@ -162,10 +161,12 @@ def main():
         if api_key:
             os.environ["ANTHROPIC_API_KEY"] = api_key
         
-        num_records = st.number_input("Number of records to generate", 
-                                    min_value=1, 
-                                    max_value=10000, 
-                                    value=100)
+        num_records = st.number_input(
+            "Number of records to generate", 
+            min_value=1, 
+            max_value=10000, 
+            value=100
+        )
     
     # Main interface - Tabs for different schema definition methods
     schema_tab1, schema_tab2 = st.tabs(["Natural Language Input", "Manual Schema Builder"])
@@ -191,6 +192,7 @@ Describe your data schema in plain English. You can specify:
             placeholder="Example: Create a table with full name, age between 18-65, email, and company name",
             help="Be specific about any constraints like age ranges or date ranges"
         )
+        
         if schema_description and st.button("Parse Schema", key="parse_nl"):
             with st.spinner("Parsing schema description..."):
                 parser = SchemaParser()
